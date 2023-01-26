@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  BaseName:
+    Type: String
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Type: String
+Resources:
+# ---------------- NETWORK ---------------- #
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: 
+        - Key: Name
+          Value: !Ref BaseName
+  Subnet: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${BaseName}-subnet
+  InternetGateway: 
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${BaseName}-igw
+  InternetGatewayAttachment: 
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  RouteTable: 
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${BaseName}-routetable
+  Route: 
+    Type: AWS::EC2::Route
+    Properties: 
+      RouteTableId: !Ref RouteTable 
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+# ---------------- EC2 ---------------- #
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Path: /
+      Roles:
+      - Ref: InstanceIAMRole
+  InstanceIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${BaseName}-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref BaseName
+      KeyName: !Ref KeyPairName
+      ImageId: ami-0d8cbea1676f2a9f2
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref Subnet
+      SecurityGroupIds:
+      - !Ref SecurityGroupEc2
+      BlockDeviceMappings: 
+      - DeviceName: /dev/sdh
+        Ebs:
+          VolumeType: gp3
+          Iops: 3000
+          DeleteOnTermination: true
+          VolumeSize: 30
+  SecurityGroupEc2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDP access through SSM
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${BaseName}-sg

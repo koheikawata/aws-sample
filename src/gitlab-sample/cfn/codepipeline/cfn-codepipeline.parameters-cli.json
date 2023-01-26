@@ -1,0 +1,31 @@
+{
+    "Parameters": [
+        {
+            "ParameterKey": "BaseName",
+            "ParameterValue": "{Base name}"
+        },
+        {
+            "ParameterKey": "RepositoryName",
+            "ParameterValue": "{CodeCommit repository name}"
+        },
+        {
+            "ParameterKey": "BranchName",
+            "ParameterValue": "{CodeCommit branch name}"
+        },
+        {
+            "ParameterKey": "TemplateFileName",
+            "ParameterValue": "cfn/cfn-main.yml"
+        },
+        {
+            "ParameterKey": "TestTemplateParameterFileName",
+            "ParameterValue": "cfn/cfn-main.parameters-codepipeline.json"
+        },
+        {
+            "ParameterKey": "ProdTemplateParameterFileName",
+            "ParameterValue": "cfn/cfn-main.parameters-codepipeline.json"
+        }
+    ],
+    "Capabilities": [
+        "CAPABILITY_NAMED_IAM"
+    ]
+}
