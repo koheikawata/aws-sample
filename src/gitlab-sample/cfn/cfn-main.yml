@@ -102,9 +102,10 @@ Resources:
       SecurityGroupIds:
       - !Ref SecurityGroupEc2
       BlockDeviceMappings: 
-      - DeviceName: "/dev/sdh"
+      - DeviceName: /dev/sdh
         Ebs:
-          VolumeType: "gp2"
+          VolumeType: gp3
+          Iops: 3000
           DeleteOnTermination: true
           VolumeSize: !Ref EbsVolumeSize
   SecurityGroupEc2:
