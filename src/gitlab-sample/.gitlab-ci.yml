@@ -1,0 +1,19 @@
+stages:
+  - build
+
+build-job:
+  stage: build
+  tags:
+    - ami-runner
+  script:
+    - ls
+    - pwd
+    - $s3bucket={S3 Bucket name}
+    - aws s3 rm s3://$s3bucket/ --recursive
+    - New-Item sample.md
+    - aws s3 cp sample.md s3://$s3bucket/
+    - aws s3 ls s3://$s3bucket/
+    - aws s3 rm s3://$s3bucket/ --recursive
+    - aws s3 ls s3://$s3bucket/
+    - Remove-item sample.md
+    - ls

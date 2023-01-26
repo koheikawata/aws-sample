@@ -1,0 +1,35 @@
+{
+    "Parameters": [
+        {
+            "ParameterKey": "BaseName",
+            "ParameterValue": "{Base name}"
+        },
+        {
+            "ParameterKey": "VpcCidrBlock",
+            "ParameterValue": "10.0.0.0/16"
+        },
+        {
+            "ParameterKey": "SubnetCidrBlock",
+            "ParameterValue": "10.0.0.0/24"
+        },
+        {
+            "ParameterKey": "KeyPairName",
+            "ParameterValue": "{Key pair}"
+        },
+        {
+            "ParameterKey": "ImageId",
+            "ParameterValue": "{AMI ID}"
+        },
+        {
+            "ParameterKey": "InstanceType",
+            "ParameterValue": "t3.xlarge"
+        },
+        {
+            "ParameterKey": "EbsVolumeSize",
+            "ParameterValue": "30"
+        }
+    ],
+    "Capabilities": [
+        "CAPABILITY_NAMED_IAM"
+    ]
+}

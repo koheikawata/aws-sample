@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  BaseName:
+    Type: String
+  RepositoryName:
+    Type: String
+  BranchName:
+    Type: String
+  TemplateFileName:
+    Type: String
+  TestTemplateParameterFileName:
+    Type: String
+  ProdTemplateParameterFileName:
+    Type: String
+Resources:
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${BaseName}-cfn
+      VersioningConfiguration:
+        Status: Enabled
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref ArtifactStoreBucket
+        Type: S3
+      Name: !Sub ${BaseName}-cfn-pipeline
+      RoleArn: !GetAtt [PipelineRole, Arn]
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: TemplateSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                BranchName: !Ref BranchName
+                RepositoryName: !Ref RepositoryName
+                PollForSourceChanges: false
+              RunOrder: 1
+        - Name: TestStage
+          Actions:
+            - Name: CreateTestStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              InputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Sub ${BaseName}-test
+                TemplatePath: !Sub TemplateSource::${TemplateFileName}
+                TemplateConfiguration: !Sub TemplateSource::${TestTemplateParameterFileName}
+                Capabilities: CAPABILITY_NAMED_IAM
+                ParameterOverrides: !Sub |
+                  {
+                    "BaseName" : "${BaseName}-test"
+                  }
+              RunOrder: 2
+            - Name: ApproveTestStack
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              Configuration:
+                CustomData: !Sub 'Do you want to create a change set against the production stack and delete the ${BaseName}-test stack?'
+              RunOrder: 3
+            - Name: DeleteTestStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              Configuration:
+                ActionMode: DELETE_ONLY
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Sub ${BaseName}-test
+              RunOrder: 4
+        - Name: ProdStage
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              InputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Sub ${BaseName}-prod
+                ChangeSetName: !Sub ${BaseName}-changeset
+                TemplatePath: !Sub TemplateSource::${TemplateFileName}
+                TemplateConfiguration: !Sub TemplateSource::${ProdTemplateParameterFileName}
+                Capabilities: CAPABILITY_NAMED_IAM
+                ParameterOverrides: !Sub |
+                  {
+                    "BaseName" : "${BaseName}"
+                  }
+              RunOrder: 1
+            - Name: ApproveChangeSet
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              Configuration:
+                CustomData: !Sub 'A new change set was created for the ${BaseName}-prod stack. Do you want to implement the changes?'
+              RunOrder: 2
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub ${BaseName}-changeset
+                RoleArn: !GetAtt [CFNRole, Arn]
+                StackName: !Sub ${BaseName}-prod
+              RunOrder: 3
+
+  CFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: cloudformation.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+              
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 's3:*'
+                - 'cloudformation:CreateStack'
+                - 'cloudformation:DescribeStacks'
+                - 'cloudformation:DeleteStack'
+                - 'cloudformation:UpdateStack'
+                - 'cloudformation:CreateChangeSet'
+                - 'cloudformation:ExecuteChangeSet'
+                - 'cloudformation:DeleteChangeSet'
+                - 'cloudformation:DescribeChangeSet'
+                - 'cloudformation:SetStackPolicy'
+                - 'codecommit:CancelUploadArchive'
+                - 'codecommit:GetBranch'
+                - 'codecommit:GetCommit'
+                - 'codecommit:GetUploadArchiveStatus'
+                - 'codecommit:UploadArchive'
+                - 'iam:PassRole'
+                - 'sns:Publish'
+                Effect: Allow
+                Resource: '*'

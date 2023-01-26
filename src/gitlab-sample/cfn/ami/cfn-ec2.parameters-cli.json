@@ -1,0 +1,19 @@
+{
+    "Parameters": [
+        {
+            "ParameterKey": "BaseName",
+            "ParameterValue": "{Base name}"
+        },
+        {
+            "ParameterKey": "KeyPairName",
+            "ParameterValue": "{Key pair}"
+        },
+        {
+            "ParameterKey": "InstanceType",
+            "ParameterValue": "t3.xlarge"
+        }
+    ],
+    "Capabilities": [
+        "CAPABILITY_NAMED_IAM"
+    ]
+}
